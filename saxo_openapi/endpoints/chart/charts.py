@@ -7,7 +7,7 @@ from ..decorators import dyndoc_insert, endpoint
 from .responses.charts import responses
 
 
-@endpoint("openapi/chart/v1/charts")
+@endpoint("openapi/chart/v3/charts")
 class GetChartData(Charts):
     """Return chart data as specified by request parameters."""
 
