@@ -5,6 +5,8 @@
 # Set default logging handler to avoid "No handler found" warnings.
 from .saxo_openapi import API   # noqa F401
 from .exceptions import OpenAPIError  # noqa F401
+import warnings
+import sys
 
 import logging
 try:
