@@ -4,61 +4,76 @@
 
 from saxo_openapi.definitions.orders import AssetType
 import saxo_openapi.endpoints.referencedata as rd
+import warnings
+import sys
 
+def InstrumentToUic(client,
+                    AccountKey,
+                    spec,
+                    assettype=None,
+                    full_search=False):
 
-def InstrumentToUic(client, AccountKey, spec, assettype=AssetType.FxSpot):
-    """replace the Instrument for a Uic in the spec dict.
-    If there is no Instrument in spec the spec gets returned untouched.
+    ## check validity of full_search
+    assert type(full_search) == bool, ("The argument `full_search` has to be a "
+    "logical flag!")
 
-    In case there are multiple entries returned and ValueError is raised.
+    ## list all asstetypes and check argument validity
+    all_types = AssetType().definitions.keys()
 
-    Parameters
-    ----------
+    ## search for uic in all assettypes:
+    if full_search:
+        assettype = all_types
 
-    client : API client instance (required)
-        the API client instance
-
-    AccountKey : string (required)
-        the AccountKey of the account
-
-    spec : dict (required)
-        the dictionary to process. If it contains an 'Instrument' key, try
-        to replace it by a Uic
-
-    assettype : string (required: default 'FxSpot')
-        the assettype used in the query with the Instrument
-
-    Example
-    -------
-
-    >>> from saxo_openapi import API
-    >>> from saxo_openapi.contrib.util import InstrumentToUic
-    >>> from pprint import pprint
-    >>> token = "..."
-    >>> AccountKey = "..."
-    >>> client = API(access_token=token)
-    >>> spec = {'Instrument': 'EURUSD', 'Amount': 120000}
-    >>> # find the Uic for Instrument
-    >>> pprint(InstrumentToUic(client, AccountKey, spec=spec))
-    {'Amount': 120000, 'Uic': 21}
-    """
-
-    if 'Instrument' in spec:
-        params = {
-            'AccountKey': AccountKey,
-            'AssetTypes': assettype,
-            'Keywords': spec.get('Instrument')
-        }
-
-        # create the request to fetch Instrument info
-        r = rd.instruments.Instruments(params=params)
-        rv = client.request(r)
-        if len(rv['Data']) == 1:
-            del spec['Instrument']
-            spec.update({'Uic': rv['Data'][0]['Identifier']})
-
+    # check if assetype is valid
+    else:
+        if assettype is None:
+            assettype = AssetType.FxSpot
+            message = ("No value to the `assettype` argument was provided. "
+            "Setting default value to 'FxSpot'.")
+            warn = warnings.formatwarning(message,
+                                          category=UserWarning,
+                                          filename="instrument_to_uic.py",
+                                          lineno=29,
+                                          line=None)
+            print(warn, file = sys.stdout)  # Print to stdout instead of stderr
         else:
-            raise ValueError("Got multiple instruments for: {}".format(
-                             spec['Instrument']))
+            assert assettype in all_types, ("The argument `assettype` has to "
+            "be a valid AssetType class object!")
+        assettype = [assettype]
 
-    return spec
+    ## perform the api query
+    if 'Instrument' in spec:
+        print("Fetching info for...:")
+        rv = []
+        message2 = "Found {number}"
+        for asset in assettype:
+            params = {
+                'AccountKey': AccountKey,
+                'AssetTypes': asset,
+                'Keywords': spec.get('Instrument')
+            }
+
+            # create the request to fetch Instrument info
+            r = rd.instruments.Instruments(params=params)
+            current_request = client.request(r)
+            rv.append(current_request)
+
+            # print custom message to the console
+            print("    {:<20}".format(asset), end = '')
+            print(message2.format(number = len(current_request['Data'])))
+
+        #print(rv)
+
+        all_inst = []
+        for asset in rv:
+            for instrument in asset['Data']:
+
+                all_inst.append({'Uic': instrument.get('Identifier'),
+                                 'AssetType': instrument.get('AssetType'),
+                                 'Symbol': instrument.get('Symbol'),
+                                 'ExchangeId': instrument.get('ExchangeId'),
+                                 'IssuerCountry': instrument.get('IssuerCountry'),
+                                 'Description': instrument.get('Descritpion'),
+                                 'CurrencyCode': instrument.get('CurrencyCode')})
+
+    return all_inst
