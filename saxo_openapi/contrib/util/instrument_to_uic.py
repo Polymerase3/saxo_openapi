@@ -4,8 +4,6 @@
 
 from saxo_openapi.definitions.orders import AssetType
 import saxo_openapi.endpoints.referencedata as rd
-import warnings
-import sys
 
 def InstrumentToUic(client,
                     AccountKey,
